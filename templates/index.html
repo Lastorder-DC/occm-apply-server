@@ -33,6 +33,12 @@
             border-radius: 6px; box-sizing: border-box; font-size: 1rem;
         }
         input[type="text"]:focus { border-color: #6364ff; outline: none; }
+        select {
+            width: 100%; padding: 12px; margin-bottom: 1rem; border: 1px solid #ddd;
+            border-radius: 6px; box-sizing: border-box; font-size: 1rem;
+            background-color: white; cursor: pointer;
+        }
+        select:focus { border-color: #6364ff; outline: none; }
         button {
             width: 100%; padding: 12px; background-color: #6364ff; color: white;
             border: none; border-radius: 6px; font-size: 1rem; font-weight: bold; cursor: pointer;
@@ -64,6 +70,11 @@
 
         <form action="/apply-admin/submit" method="POST">
             <input type="text" name="mastodon_id" placeholder="@userid 또는 userid" required autofocus>
+            <select name="role_type" required>
+                <option value="" disabled selected>신청 유형 선택</option>
+                <option value="커뮤니티 총괄">커뮤니티 총괄</option>
+                <option value="커뮤니티 스탭">커뮤니티 스탭</option>
+            </select>
             {% if turnstile_site_key %}
             <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
             {% endif %}
