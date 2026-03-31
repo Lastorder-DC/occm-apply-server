@@ -58,13 +58,20 @@
         }
         .role-총괄 { background-color: #e8e8ff; color: #6364ff; }
         .role-스탭 { background-color: #e8f8e8; color: #2e7d32; }
+        .refresh-btn {
+            background: none; border: none; font-size: 0.9rem; color: #6364ff;
+            cursor: pointer; padding: 0; font-family: inherit;
+        }
+        .refresh-btn:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container" data-domain="{{ mastodon_domain }}">
         <h1>
             신청 목록
             <span>
+                <button type="button" class="refresh-btn" onclick="refreshList()">새로고침</button>
+                &nbsp;
                 <a href="/apply-admin/" class="home-link">← 신청 페이지로</a>
                 &nbsp;
                 <form action="/apply-admin/logout" method="POST" style="display:inline;">
@@ -78,15 +85,13 @@
                 {% for item in items %}
                 <li>
 			<span class="text-content">
-                        <a href="https://occm.cc/admin/accounts?origin=local&username={{ item.id }}">{{ item.display_text }}</a>
+                        <a href="https://{{ mastodon_domain }}/admin/accounts?origin=local&username={{ item.id }}">{{ item.display_text }}</a>
                         {% if item.role %}
                         <span class="role-badge {% if item.role == '커뮤니티 총괄' %}role-총괄{% else %}role-스탭{% endif %}">{{ item.role }}</span>
                         {% endif %}
                     </span>
                     
-                    <form action="/apply-admin/delete/{{ item.id }}" method="POST" style="margin:0;">
-                        <button type="submit" class="delete-btn" onclick="return confirm('ID [{{ item.id }}] 항목을 정말 삭제하시겠습니까?');">삭제</button>
-                    </form>
+                    <button type="button" class="delete-btn" data-id="{{ item.id }}" onclick="deleteItem(this)">삭제</button>
                 </li>
                 {% endfor %}
             {% else %}
@@ -94,5 +99,99 @@
             {% endif %}
         </ul>
     </div>
+    <script>
+        var mastodonDomain = document.querySelector('.container').getAttribute('data-domain');
+
+        function refreshList() {
+            fetch('/apply-admin/listman-data')
+            .then(function(response) {
+                return response.json().then(function(data) {
+                    return { ok: response.ok, data: data };
+                });
+            })
+            .then(function(result) {
+                if (!result.data.success) {
+                    alert(result.data.message);
+                    return;
+                }
+
+                var ul = document.querySelector('ul');
+                ul.innerHTML = '';
+
+                var items = result.data.items;
+                if (items.length === 0) {
+                    var emptyLi = document.createElement('li');
+                    emptyLi.className = 'empty-msg';
+                    emptyLi.textContent = '현재 대기 중인 신청 내역이 없습니다.';
+                    ul.appendChild(emptyLi);
+                    return;
+                }
+
+                items.forEach(function(item) {
+                    var li = document.createElement('li');
+
+                    var span = document.createElement('span');
+                    span.className = 'text-content';
+
+                    var a = document.createElement('a');
+                    a.href = 'https://' + mastodonDomain + '/admin/accounts?origin=local&username=' + encodeURIComponent(item.id);
+                    a.textContent = item.display_text;
+                    span.appendChild(a);
+
+                    if (item.role) {
+                        var badge = document.createElement('span');
+                        badge.className = 'role-badge ' + (item.role === '커뮤니티 총괄' ? 'role-총괄' : 'role-스탭');
+                        badge.textContent = item.role;
+                        span.appendChild(badge);
+                    }
+
+                    li.appendChild(span);
+
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'delete-btn';
+                    btn.setAttribute('data-id', item.id);
+                    btn.textContent = '삭제';
+                    btn.onclick = function() { deleteItem(btn); };
+                    li.appendChild(btn);
+
+                    ul.appendChild(li);
+                });
+            })
+            .catch(function() {
+                alert('목록을 불러오는 중 오류가 발생했습니다. 다시 시도해주세요.');
+            });
+        }
+
+        function deleteItem(btn) {
+            var targetId = btn.getAttribute('data-id');
+            if (!confirm('ID [' + targetId + '] 항목을 정말 삭제하시겠습니까?')) {
+                return;
+            }
+
+            btn.disabled = true;
+
+            fetch('/apply-admin/delete/' + encodeURIComponent(targetId), {
+                method: 'POST'
+            })
+            .then(function(response) {
+                return response.json().then(function(data) {
+                    return { ok: response.ok, data: data };
+                });
+            })
+            .then(function(result) {
+                if (result.data.success) {
+                    refreshList();
+                } else {
+                    alert(result.data.message);
+                    btn.disabled = false;
+                }
+            })
+            .catch(function() {
+                alert('삭제 요청 중 오류가 발생했습니다. 다시 시도해주세요.');
+                btn.disabled = false;
+            });
+        }
+    </script>
 </body>
 </html>
