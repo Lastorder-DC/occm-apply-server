@@ -94,6 +94,16 @@ def submit():
             """
 
     raw_user_id = request.form.get('mastodon_id', '').strip()
+    role_type = request.form.get('role_type', '').strip()
+
+    valid_roles = ['커뮤니티 총괄', '커뮤니티 스탭']
+    if role_type not in valid_roles:
+        return """
+        <script>
+            alert('올바른 신청 유형을 선택해주세요.');
+            window.history.back();
+        </script>
+        """
 
     if not raw_user_id:
         return """
@@ -126,8 +136,9 @@ def submit():
             with open(FILE_PATH, 'r', encoding='utf-8') as f:
                 for line in f:
                     parts = line.strip().split('] ')
-                    existing = parts[1].strip() if len(parts) > 1 else line.strip()
-                    if existing == user_id:
+                    existing_rest = parts[1].strip() if len(parts) > 1 else line.strip()
+                    existing_id = existing_rest.split('|')[0].strip()
+                    if existing_id == user_id:
                         is_duplicate = True
                         break
 
@@ -183,7 +194,7 @@ def submit():
 
     # 검증 통과 시 저장 로직 수행
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    log_entry = f"[{timestamp}] {user_id}\n"
+    log_entry = f"[{timestamp}] {user_id}|{role_type}\n"
 
     with file_lock:
         with open(FILE_PATH, 'a', encoding='utf-8') as f:
@@ -241,10 +252,13 @@ def listman():
 
                     parts = line.split('] ')
                     if len(parts) > 1:
-                        extracted_id = parts[1].strip()
-                        data_list.append({'full_text': line, 'id': extracted_id})
+                        rest = parts[1].strip()
+                        id_parts = rest.split('|', 1)
+                        extracted_id = id_parts[0].strip()
+                        extracted_role = id_parts[1].strip() if len(id_parts) > 1 else ''
+                        data_list.append({'full_text': line, 'id': extracted_id, 'role': extracted_role})
                     else:
-                        data_list.append({'full_text': line, 'id': line})
+                        data_list.append({'full_text': line, 'id': line, 'role': ''})
 
     return render_template('admin.html', items=data_list)
 
@@ -264,7 +278,8 @@ def delete_item(target_id):
             for line in lines:
                 parts = line.strip().split('] ')
                 if len(parts) > 1:
-                    current_id = parts[1].strip()
+                    rest = parts[1].strip()
+                    current_id = rest.split('|')[0].strip()
                     if current_id == target_id:
                         continue
 

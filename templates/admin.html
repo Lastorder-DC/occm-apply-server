@@ -51,7 +51,13 @@
             border-radius: 4px; cursor: pointer; font-size: 0.85rem; margin-left: 10px; flex-shrink: 0;
         }
         .delete-btn:hover { background-color: #d9363e; }
-        .empty-msg { text-align: center; color: #999; padding: 20px; }
+        .role-badge {
+            display: inline-block; font-size: 0.75rem; padding: 2px 7px;
+            border-radius: 10px; margin-left: 6px; font-weight: bold;
+            vertical-align: middle;
+        }
+        .role-총괄 { background-color: #e8e8ff; color: #6364ff; }
+        .role-스탭 { background-color: #e8f8e8; color: #2e7d32; }
     </style>
 </head>
 <body>
@@ -71,7 +77,12 @@
             {% if items %}
                 {% for item in items %}
                 <li>
-			<span class="text-content"><a href="https://occm.cc/admin/accounts?origin=local&username={{ item.id }}">{{ item.full_text }}</a></span>
+			<span class="text-content">
+                        <a href="https://occm.cc/admin/accounts?origin=local&username={{ item.id }}">{{ item.full_text }}</a>
+                        {% if item.role %}
+                        <span class="role-badge {% if item.role == '커뮤니티 총괄' %}role-총괄{% else %}role-스탭{% endif %}">{{ item.role }}</span>
+                        {% endif %}
+                    </span>
                     
                     <form action="/apply-admin/delete/{{ item.id }}" method="POST" style="margin:0;">
                         <button type="submit" class="delete-btn" onclick="return confirm('ID [{{ item.id }}] 항목을 정말 삭제하시겠습니까?');">삭제</button>
