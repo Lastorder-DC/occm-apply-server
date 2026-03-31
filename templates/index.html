@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>자커마스 총괄계정 권한 신청 페이지</title>
+    <title>{{ server_name }} 총괄계정 권한 신청 페이지</title>
     {% if turnstile_site_key %}
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     {% endif %}
@@ -63,9 +63,9 @@
 </head>
 <body>
     <div class="container">
-        <h1>자커마스 총괄계정 권한 신청</h1>
+        <h1>{{ server_name }} 총괄계정 권한 신청</h1>
         <p class="description">
-            권한을 부여받을 자커마스({{ mastodon_domain }}) 계정 ID를<br>입력해주세요.
+            권한을 부여받을 {{ server_name }}({{ mastodon_domain }}) 계정 ID를<br>입력해주세요.
         </p>
 
         <form id="applyForm" action="/apply-admin/submit" method="POST">
@@ -82,7 +82,7 @@
         </form>
         
         <div class="footer">
-            자커마스 서버의 아이디만 입력해주세요. 이메일 주소는 입력되지 않습니다. 입력된 ID는 관리자 승인 대기 목록에 추가됩니다.
+            {{ server_name }} 서버의 아이디만 입력해주세요. 이메일 주소는 입력되지 않습니다. 입력된 ID는 관리자 승인 대기 목록에 추가됩니다.
         </div>
     </div>
     <footer class="page-footer">

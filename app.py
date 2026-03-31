@@ -28,6 +28,7 @@ TURNSTILE_SECRET_KEY = os.environ.get('TURNSTILE_SECRET_KEY', '')
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
 MASTODON_DOMAIN = os.environ.get('MASTODON_DOMAIN', 'occm.cc')
+SERVER_NAME_KO = os.environ.get('SERVER_NAME_KO', '자커마스')
 OCCM_DOMAIN_SUFFIX = f'@{MASTODON_DOMAIN}'
 
 # REDIS_URL: Redis 연결 URL (rate limiting용). 미설정시 in-memory 스토리지 사용.
@@ -72,7 +73,7 @@ def ratelimit_handler(e):
 
 @app.route('/apply-admin/', methods=['GET'])
 def index():
-    return render_template('index.html', turnstile_site_key=TURNSTILE_SITE_KEY, mastodon_domain=MASTODON_DOMAIN)
+    return render_template('index.html', turnstile_site_key=TURNSTILE_SITE_KEY, mastodon_domain=MASTODON_DOMAIN, server_name=SERVER_NAME_KO)
 
 
 @app.route('/apply-admin/submit', methods=['POST'])
@@ -129,7 +130,7 @@ def submit():
 
         # 404 Not Found인 경우 (존재하지 않는 아이디)
         if response.status_code == 404:
-            return jsonify({'success': False, 'message': '자커마스 서버에 존재하지 않는 아이디입니다.\n아이디를 다시 확인해주세요.'}), 404
+            return jsonify({'success': False, 'message': f'{SERVER_NAME_KO} 서버에 존재하지 않는 아이디입니다.\n아이디를 다시 확인해주세요.'}), 404
 
         if response.status_code == 200:
             account_data = response.json()
