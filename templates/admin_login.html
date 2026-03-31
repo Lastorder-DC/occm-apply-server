@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>자커마스 총괄계정 권한 신청 페이지</title>
+    <title>관리자 로그인</title>
     {% if turnstile_site_key %}
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     {% endif %}
@@ -27,55 +27,35 @@
             text-align: center;
         }
         h1 { font-size: 1.5rem; color: #333; margin-bottom: 1.5rem; }
-        .description { color: #666; margin-bottom: 1.5rem; font-size: 0.95rem; line-height: 1.5; }
-        input[type="text"] {
+        input[type="password"] {
             width: 100%; padding: 12px; margin-bottom: 1rem; border: 1px solid #ddd;
             border-radius: 6px; box-sizing: border-box; font-size: 1rem;
         }
-        input[type="text"]:focus { border-color: #6364ff; outline: none; }
+        input[type="password"]:focus { border-color: #6364ff; outline: none; }
         button {
             width: 100%; padding: 12px; background-color: #6364ff; color: white;
             border: none; border-radius: 6px; font-size: 1rem; font-weight: bold; cursor: pointer;
         }
         button:hover { background-color: #5051cc; }
-        .footer { margin-top: 1.5rem; font-size: 0.8rem; color: #999; }
+        .error { color: #ff4d4f; margin-bottom: 1rem; font-size: 0.9rem; }
         .cf-turnstile { display: flex; justify-content: center; margin-bottom: 1rem; }
-        .page-footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            text-align: center;
-            padding: 0.6rem;
-            font-size: 0.75rem;
-            color: #aaa;
-            background-color: #f4f6f8;
-        }
-        .page-footer a { color: #aaa; text-decoration: none; }
-        .page-footer a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>자커마스 총괄계정 권한 신청</h1>
-        <p class="description">
-            권한을 부여받을 자커마스(occm.cc) 계정 ID를<br>입력해주세요.
-        </p>
+        <h1>관리자 로그인</h1>
 
-        <form action="/apply-admin/submit" method="POST">
-            <input type="text" name="mastodon_id" placeholder="@userid 또는 userid" required autofocus>
+        {% if error %}
+        <p class="error">{{ error }}</p>
+        {% endif %}
+
+        <form action="/apply-admin/admin-login" method="POST">
+            <input type="password" name="password" placeholder="비밀번호" required autofocus>
             {% if turnstile_site_key %}
             <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
             {% endif %}
-            <button type="submit">신청하기</button>
+            <button type="submit">로그인</button>
         </form>
-        
-        <div class="footer">
-            입력된 ID는 관리자 승인 대기 목록에 추가됩니다. 잘못 입력하였을 경우 다시 입력해주시면 됩니다.
-        </div>
     </div>
-    <footer class="page-footer">
-        <a href="https://github.com/Lastorder-DC/occm-apply-server" target="_blank" rel="noopener noreferrer">소스코드 (GitHub)</a>
-    </footer>
 </body>
 </html>
