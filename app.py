@@ -27,7 +27,8 @@ TURNSTILE_SECRET_KEY = os.environ.get('TURNSTILE_SECRET_KEY', '')
 
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
-OCCM_DOMAIN_SUFFIX = '@occm.cc'
+MASTODON_DOMAIN = os.environ.get('MASTODON_DOMAIN', 'occm.cc')
+OCCM_DOMAIN_SUFFIX = f'@{MASTODON_DOMAIN}'
 
 # REDIS_URL: Redis 연결 URL (rate limiting용). 미설정시 in-memory 스토리지 사용.
 # 프로덕션 환경에서는 반드시 Redis URL을 설정하세요 (예: redis://:password@localhost:6379).
@@ -71,7 +72,7 @@ def ratelimit_handler(e):
 
 @app.route('/apply-admin/', methods=['GET'])
 def index():
-    return render_template('index.html', turnstile_site_key=TURNSTILE_SITE_KEY)
+    return render_template('index.html', turnstile_site_key=TURNSTILE_SITE_KEY, mastodon_domain=MASTODON_DOMAIN)
 
 
 @app.route('/apply-admin/submit', methods=['POST'])
@@ -96,7 +97,7 @@ def submit():
     # mastodon_id 정규화 (맨 앞 @ 삭제)
     user_id = raw_user_id.lstrip('@')
 
-    # 아이디@occm.cc 형태면 @occm.cc 삭제
+    # 아이디@도메인 형태면 @도메인 삭제
     if user_id.lower().endswith(OCCM_DOMAIN_SUFFIX):
         user_id = user_id[:-len(OCCM_DOMAIN_SUFFIX)]
 
@@ -121,7 +122,7 @@ def submit():
         return jsonify({'success': False, 'message': '이미 신청된 아이디입니다.'}), 409
 
     # Mastodon API를 이용한 존재 여부 및 역할 검증
-    lookup_url = f"https://occm.cc/api/v1/accounts/lookup?acct={user_id}"
+    lookup_url = f"https://{MASTODON_DOMAIN}/api/v1/accounts/lookup?acct={user_id}"
 
     try:
         response = requests.get(lookup_url, timeout=5)
@@ -207,7 +208,7 @@ def listman():
                     else:
                         data_list.append({'full_text': line, 'display_text': line, 'id': line, 'role': ''})
 
-    return render_template('admin.html', items=data_list)
+    return render_template('admin.html', items=data_list, mastodon_domain=MASTODON_DOMAIN)
 
 
 # 목록 데이터 JSON API
