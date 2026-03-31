@@ -78,7 +78,7 @@
                 {% for item in items %}
                 <li>
 			<span class="text-content">
-                        <a href="https://occm.cc/admin/accounts?origin=local&username={{ item.id }}">{{ item.full_text }}</a>
+                        <a href="https://occm.cc/admin/accounts?origin=local&username={{ item.id }}">{{ item.display_text }}</a>
                         {% if item.role %}
                         <span class="role-badge {% if item.role == '커뮤니티 총괄' %}role-총괄{% else %}role-스탭{% endif %}">{{ item.role }}</span>
                         {% endif %}

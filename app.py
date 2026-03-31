@@ -252,13 +252,15 @@ def listman():
 
                     parts = line.split('] ')
                     if len(parts) > 1:
+                        timestamp_part = parts[0] + ']'
                         rest = parts[1].strip()
                         id_parts = rest.split('|', 1)
                         extracted_id = id_parts[0].strip()
                         extracted_role = id_parts[1].strip() if len(id_parts) > 1 else ''
-                        data_list.append({'full_text': line, 'id': extracted_id, 'role': extracted_role})
+                        display_text = f"{timestamp_part} {extracted_id}"
+                        data_list.append({'full_text': line, 'display_text': display_text, 'id': extracted_id, 'role': extracted_role})
                     else:
-                        data_list.append({'full_text': line, 'id': line, 'role': ''})
+                        data_list.append({'full_text': line, 'display_text': line, 'id': line, 'role': ''})
 
     return render_template('admin.html', items=data_list)
 
