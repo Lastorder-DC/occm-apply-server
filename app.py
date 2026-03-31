@@ -1,4 +1,5 @@
 from flask import Flask, request, render_template, redirect, url_for, session
+from werkzeug.middleware.proxy_fix import ProxyFix
 import threading
 import os
 import secrets
@@ -11,6 +12,9 @@ from flask_limiter.util import get_remote_address
 load_dotenv()
 
 app = Flask(__name__)
+
+# Get real ip from header
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # 파일 쓰기 충돌 방지를 위한 Lock 객체
 file_lock = threading.Lock()
