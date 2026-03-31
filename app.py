@@ -272,5 +272,11 @@ def delete_item(target_id):
     return redirect(url_for('listman'))
 
 
+@app.route('/apply-admin/check-my-ip', methods=['GET'])
+@limiter.limit("100 per 5 minutes")
+def check_my_ip():
+    return {'ip': request.remote_addr}
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
