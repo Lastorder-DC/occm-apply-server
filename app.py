@@ -1,3 +1,5 @@
+APP_VERSION = '1.0.0'
+
 from flask import Flask, request, render_template, redirect, url_for, session, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
 import threading
@@ -41,6 +43,7 @@ limiter = Limiter(
     app=app,
     storage_uri=REDIS_URL,
     default_limits=[],
+    headers_enabled=True,
 )
 
 
@@ -73,7 +76,7 @@ def ratelimit_handler(e):
 
 @app.route('/apply-admin/', methods=['GET'])
 def index():
-    return render_template('index.html', turnstile_site_key=TURNSTILE_SITE_KEY, mastodon_domain=MASTODON_DOMAIN, server_name=SERVER_NAME_KO)
+    return render_template('index.html', turnstile_site_key=TURNSTILE_SITE_KEY, mastodon_domain=MASTODON_DOMAIN, server_name=SERVER_NAME_KO, app_version=APP_VERSION)
 
 
 @app.route('/apply-admin/submit', methods=['POST'])
