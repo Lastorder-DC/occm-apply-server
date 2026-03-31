@@ -32,7 +32,7 @@ cp .env.sample .env
 
 | 변수 | 설명 |
 |------|------|
-| `ADMIN_PASSWORD` | 관리자 페이지 접속 비밀번호 (서버 시작 시 자동 해싱됨) |
+| `ADMIN_PASSWORD` | 관리자 페이지 접속 비밀번호 (`ADMIN_PASSWORD` 또는 `ADMIN_PASSWORD_HASH` 중 하나 필수) |
 | `SECRET_KEY` | Flask 세션 암호화 키 (아래 명령으로 생성 가능) |
 
 ```bash

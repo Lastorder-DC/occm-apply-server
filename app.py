@@ -133,10 +133,10 @@ def submit():
         return jsonify({'success': False, 'message': '올바른 마스토돈 아이디 형식이 아닙니다.'}), 400
 
     # Mastodon API를 이용한 존재 여부 및 역할 검증
-    lookup_url = f"https://{MASTODON_DOMAIN}/api/v1/accounts/lookup?acct={user_id}"
+    lookup_url = f"https://{MASTODON_DOMAIN}/api/v1/accounts/lookup"
 
     try:
-        response = requests.get(lookup_url, timeout=5)
+        response = requests.get(lookup_url, params={'acct': user_id}, timeout=5)
 
         # 404 Not Found인 경우 (존재하지 않는 아이디)
         if response.status_code == 404:
@@ -155,9 +155,6 @@ def submit():
         return jsonify({'success': False, 'message': '서버와 통신 중 오류가 발생했습니다.\n잠시 후 다시 시도해주세요.'}), 502
 
     # 검증 통과 시 중복 확인 + 저장을 단일 Lock 내에서 수행 (레이스 컨디션 방지)
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    log_entry = f"[{timestamp}] {user_id}|{role_type}\n"
-
     with file_lock:
         if os.path.exists(FILE_PATH):
             with open(FILE_PATH, 'r', encoding='utf-8') as f:
@@ -168,6 +165,8 @@ def submit():
                     if existing_id == user_id:
                         return jsonify({'success': False, 'message': '이미 신청된 아이디입니다.'}), 409
 
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        log_entry = f"[{timestamp}] {user_id}|{role_type}\n"
         with open(FILE_PATH, 'a', encoding='utf-8') as f:
             f.write(log_entry)
 
