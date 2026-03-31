@@ -2,9 +2,10 @@ from flask import Flask, request, render_template, redirect, url_for, session
 import threading
 import os
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 from dotenv import load_dotenv
+from collections import defaultdict
 
 load_dotenv()
 
@@ -22,6 +23,12 @@ TURNSTILE_SECRET_KEY = os.environ.get('TURNSTILE_SECRET_KEY', '')
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
 OCCM_DOMAIN_SUFFIX = '@occm.cc'
+
+# IP별 요청 시간 기록 (rate limiting용)
+rate_limit_lock = threading.Lock()
+rate_limit_map = defaultdict(list)
+RATE_LIMIT_MAX = 10
+RATE_LIMIT_WINDOW = timedelta(minutes=5)
 
 
 def verify_turnstile(token, remote_ip=None):
@@ -65,6 +72,22 @@ def submit():
             """
 
     raw_user_id = request.form.get('mastodon_id', '').strip()
+
+    # IP 기반 rate limit 검사 (5분 내 10회 초과 차단)
+    client_ip = request.remote_addr
+    now = datetime.now()
+    with rate_limit_lock:
+        timestamps = rate_limit_map[client_ip]
+        timestamps = [t for t in timestamps if now - t < RATE_LIMIT_WINDOW]
+        rate_limit_map[client_ip] = timestamps
+        if len(timestamps) >= RATE_LIMIT_MAX:
+            return """
+            <script>
+                alert('요청이 너무 많습니다. 5분 후 다시 시도해주세요.');
+                window.history.back();
+            </script>
+            """
+        timestamps.append(now)
 
     if not raw_user_id:
         return """
@@ -110,17 +133,35 @@ def submit():
         </script>
         """
 
-    # WebFinger를 이용한 존재 여부 검증
-    target_url = f"https://occm.cc/.well-known/webfinger?resource=acct:{user_id}@occm.cc"
+    # Mastodon API를 이용한 존재 여부 및 역할 검증
+    lookup_url = f"https://occm.cc/api/v1/accounts/lookup?acct={user_id}"
 
     try:
-        response = requests.get(target_url, timeout=5)
+        response = requests.get(lookup_url, timeout=5)
 
         # 404 Not Found인 경우 (존재하지 않는 아이디)
         if response.status_code == 404:
             return """
             <script>
                 alert('자커마스 서버에 존재하지 않는 아이디입니다.\\n아이디를 다시 확인해주세요.');
+                window.history.back();
+            </script>
+            """
+
+        if response.status_code == 200:
+            account_data = response.json()
+            roles = account_data.get('roles', [])
+            if any(role.get('name') == '커뮤니티 총괄' for role in roles):
+                return """
+                <script>
+                    alert('이미 커뮤니티 총괄 권한이 있습니다.');
+                    window.history.back();
+                </script>
+                """
+        elif response.status_code != 404:
+            return """
+            <script>
+                alert('아이디 조회 중 오류가 발생했습니다.\\n잠시 후 다시 시도해주세요.');
                 window.history.back();
             </script>
             """
