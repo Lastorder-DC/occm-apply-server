@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>자커마스 총괄계정 권한 신청 페이지</title>
+    <style>
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: #f4f6f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        h1 { font-size: 1.5rem; color: #333; margin-bottom: 1.5rem; }
+        .description { color: #666; margin-bottom: 1.5rem; font-size: 0.95rem; line-height: 1.5; }
+        input[type="text"] {
+            width: 100%; padding: 12px; margin-bottom: 1rem; border: 1px solid #ddd;
+            border-radius: 6px; box-sizing: border-box; font-size: 1rem;
+        }
+        input[type="text"]:focus { border-color: #6364ff; outline: none; }
+        button {
+            width: 100%; padding: 12px; background-color: #6364ff; color: white;
+            border: none; border-radius: 6px; font-size: 1rem; font-weight: bold; cursor: pointer;
+        }
+        button:hover { background-color: #5051cc; }
+        .footer { margin-top: 1.5rem; font-size: 0.8rem; color: #999; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>자커마스 총괄계정 권한 신청</h1>
+        <p class="description">
+            권한을 부여받을 자커마스(occm.cc) 계정 ID를<br>입력해주세요.
+        </p>
+
+        <form action="/apply-admin/submit" method="POST">
+            <input type="text" name="mastodon_id" placeholder="@userid 또는 userid" required autofocus>
+            <button type="submit">신청하기</button>
+        </form>
+        
+        <div class="footer">
+            입력된 ID는 관리자 승인 대기 목록에 추가됩니다. 잘못 입력하였을 경우 다시 입력해주시면 됩니다.
+        </div>
+    </div>
+</body>
+</html>

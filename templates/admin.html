@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 페이지 - 신청 목록</title>
+    <style>
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: #f4f6f8;
+            display: flex;
+            justify-content: center;
+            padding-top: 50px;
+            margin: 0;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 600px;
+            height: fit-content;
+        }
+        h1 {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .home-link { font-size: 0.9rem; text-decoration: none; color: #6364ff; }
+        ul { list-style: none; padding: 0; margin: 0; }
+        li {
+            background: #fff; border-bottom: 1px solid #eee; padding: 15px 0;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        li:last-child { border-bottom: none; }
+        .text-content { font-size: 0.95rem; color: #333; word-break: break-all; }
+        .delete-btn {
+            background-color: #ff4d4f; color: white; border: none; padding: 6px 12px;
+            border-radius: 4px; cursor: pointer; font-size: 0.85rem; margin-left: 10px; flex-shrink: 0;
+        }
+        .delete-btn:hover { background-color: #d9363e; }
+        .empty-msg { text-align: center; color: #999; padding: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>
+            신청 목록
+            <a href="/apply-admin/" class="home-link">← 신청 페이지로</a>
+        </h1>
+
+        <ul>
+            {% if items %}
+                {% for item in items %}
+                <li>
+			<span class="text-content"><a href="https://occm.cc/admin/accounts?origin=local&username={{ item.id }}">{{ item.full_text }}</a></span>
+                    
+                    <form action="/apply-admin/delete/{{ item.id }}" method="POST" style="margin:0;">
+                        <button type="submit" class="delete-btn" onclick="return confirm('ID [{{ item.id }}] 항목을 정말 삭제하시겠습니까?');">삭제</button>
+                    </form>
+                </li>
+                {% endfor %}
+            {% else %}
+                <li class="empty-msg">현재 대기 중인 신청 내역이 없습니다.</li>
+            {% endif %}
+        </ul>
+    </div>
+</body>
+</html>
