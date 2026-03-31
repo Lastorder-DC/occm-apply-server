@@ -69,7 +69,7 @@
         </p>
 
         <form id="applyForm" action="/apply-admin/submit" method="POST">
-            <input type="text" name="mastodon_id" placeholder="@userid 또는 userid" required autofocus>
+            <input type="text" name="mastodon_id" placeholder="@userid 또는 userid" required autofocus maxlength="30">
             <select name="role_type" required>
                 <option value="" disabled selected>신청 유형 선택</option>
                 <option value="커뮤니티 총괄">커뮤니티 총괄</option>

@@ -2,10 +2,12 @@ APP_VERSION = '1.0.0'
 
 from flask import Flask, request, render_template, redirect, url_for, session, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.security import generate_password_hash, check_password_hash
 import threading
 import os
+import re
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 from dotenv import load_dotenv
 from flask_limiter import Limiter
@@ -23,15 +25,33 @@ file_lock = threading.Lock()
 
 # .env 설정 로드
 FILE_PATH = os.environ.get('FILE_PATH', 'pending.txt')
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
 TURNSTILE_SITE_KEY = os.environ.get('TURNSTILE_SITE_KEY', '')
 TURNSTILE_SECRET_KEY = os.environ.get('TURNSTILE_SECRET_KEY', '')
 
+# 관리자 비밀번호: ADMIN_PASSWORD_HASH(해시)가 설정되어 있으면 우선 사용,
+# 없으면 ADMIN_PASSWORD(평문)를 런타임에 해싱하여 사용
+_admin_password_hash = os.environ.get('ADMIN_PASSWORD_HASH', '')
+_admin_password_plain = os.environ.get('ADMIN_PASSWORD', '')
+if _admin_password_hash:
+    ADMIN_PASSWORD_HASH = _admin_password_hash
+elif _admin_password_plain:
+    ADMIN_PASSWORD_HASH = generate_password_hash(_admin_password_plain)
+else:
+    ADMIN_PASSWORD_HASH = ''
+
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+
+# 세션 타임아웃 설정 (기본 60분)
+app.permanent_session_lifetime = timedelta(
+    minutes=int(os.environ.get('SESSION_TIMEOUT_MINUTES', '60'))
+)
 
 MASTODON_DOMAIN = os.environ.get('MASTODON_DOMAIN', 'occm.cc')
 SERVER_NAME_KO = os.environ.get('SERVER_NAME_KO', '자커마스')
 OCCM_DOMAIN_SUFFIX = f'@{MASTODON_DOMAIN}'
+
+# 마스토돈 사용자명 검증 정규식 (영문, 숫자, 밑줄, 마침표, 1~30자)
+MASTODON_USERNAME_RE = re.compile(r'^[a-zA-Z0-9_.]{1,30}$')
 
 # REDIS_URL: Redis 연결 URL (rate limiting용). 미설정시 in-memory 스토리지 사용.
 # 프로덕션 환경에서는 반드시 Redis URL을 설정하세요 (예: redis://:password@localhost:6379).
@@ -105,31 +125,18 @@ def submit():
     if user_id.lower().endswith(OCCM_DOMAIN_SUFFIX):
         user_id = user_id[:-len(OCCM_DOMAIN_SUFFIX)]
 
-    # 이메일 형태 등록 제한 (@ 포함 여부 체크)
+    # 사용자명 형식 검증 (@ 포함 여부 체크 및 정규식 검증)
     if '@' in user_id:
         return jsonify({'success': False, 'message': '이메일 형태의 아이디는 등록할 수 없습니다.'}), 400
 
-    # 아이디 중복 등록 제한
-    is_duplicate = False
-    with file_lock:
-        if os.path.exists(FILE_PATH):
-            with open(FILE_PATH, 'r', encoding='utf-8') as f:
-                for line in f:
-                    parts = line.strip().split('] ')
-                    existing_rest = parts[1].strip() if len(parts) > 1 else line.strip()
-                    existing_id = existing_rest.split('|')[0].strip()
-                    if existing_id == user_id:
-                        is_duplicate = True
-                        break
-
-    if is_duplicate:
-        return jsonify({'success': False, 'message': '이미 신청된 아이디입니다.'}), 409
+    if not MASTODON_USERNAME_RE.match(user_id):
+        return jsonify({'success': False, 'message': '올바른 마스토돈 아이디 형식이 아닙니다.'}), 400
 
     # Mastodon API를 이용한 존재 여부 및 역할 검증
-    lookup_url = f"https://{MASTODON_DOMAIN}/api/v1/accounts/lookup?acct={user_id}"
+    lookup_url = f"https://{MASTODON_DOMAIN}/api/v1/accounts/lookup"
 
     try:
-        response = requests.get(lookup_url, timeout=5)
+        response = requests.get(lookup_url, params={'acct': user_id}, timeout=5)
 
         # 404 Not Found인 경우 (존재하지 않는 아이디)
         if response.status_code == 404:
@@ -143,15 +150,23 @@ def submit():
         elif response.status_code != 404:
             return jsonify({'success': False, 'message': '아이디 조회 중 오류가 발생했습니다.\n잠시 후 다시 시도해주세요.'}), 502
 
-    except requests.exceptions.RequestException as e:
+    except requests.exceptions.RequestException:
         # 네트워크 오류 등 발생 시
-        return jsonify({'success': False, 'message': f'서버와 통신 중 오류가 발생했습니다.\n잠시 후 다시 시도해주세요.\n({str(e)})'}), 502
+        return jsonify({'success': False, 'message': '서버와 통신 중 오류가 발생했습니다.\n잠시 후 다시 시도해주세요.'}), 502
 
-    # 검증 통과 시 저장 로직 수행
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    log_entry = f"[{timestamp}] {user_id}|{role_type}\n"
-
+    # 검증 통과 시 중복 확인 + 저장을 단일 Lock 내에서 수행 (레이스 컨디션 방지)
     with file_lock:
+        if os.path.exists(FILE_PATH):
+            with open(FILE_PATH, 'r', encoding='utf-8') as f:
+                for line in f:
+                    parts = line.strip().split('] ')
+                    existing_rest = parts[1].strip() if len(parts) > 1 else line.strip()
+                    existing_id = existing_rest.split('|')[0].strip()
+                    if existing_id == user_id:
+                        return jsonify({'success': False, 'message': '이미 신청된 아이디입니다.'}), 409
+
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        log_entry = f"[{timestamp}] {user_id}|{role_type}\n"
         with open(FILE_PATH, 'a', encoding='utf-8') as f:
             f.write(log_entry)
 
@@ -170,7 +185,8 @@ def admin_login():
 
         if error is None:
             password = request.form.get('password', '')
-            if ADMIN_PASSWORD and password == ADMIN_PASSWORD:
+            if ADMIN_PASSWORD_HASH and check_password_hash(ADMIN_PASSWORD_HASH, password):
+                session.permanent = True
                 session['admin_logged_in'] = True
                 return redirect(url_for('listman'))
             else:
