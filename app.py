@@ -5,6 +5,8 @@ import secrets
 from datetime import datetime
 import requests
 from dotenv import load_dotenv
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 load_dotenv()
 
@@ -22,6 +24,18 @@ TURNSTILE_SECRET_KEY = os.environ.get('TURNSTILE_SECRET_KEY', '')
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
 OCCM_DOMAIN_SUFFIX = '@occm.cc'
+
+# REDIS_URL: Redis 연결 URL (rate limiting용). 미설정시 in-memory 스토리지 사용.
+# 프로덕션 환경에서는 반드시 Redis URL을 설정하세요 (예: redis://:password@localhost:6379).
+# in-memory 스토리지는 다중 인스턴스 환경에서 rate limit이 공유되지 않습니다.
+REDIS_URL = os.environ.get('REDIS_URL', 'memory://')
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    storage_uri=REDIS_URL,
+    default_limits=[],
+)
 
 
 def verify_turnstile(token, remote_ip=None):
@@ -46,12 +60,23 @@ def is_admin_logged_in():
     return session.get('admin_logged_in') is True
 
 
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return """
+    <script>
+        alert('요청이 너무 많습니다. 5분 후 다시 시도해주세요.');
+        window.history.back();
+    </script>
+    """, 429
+
+
 @app.route('/apply-admin/', methods=['GET'])
 def index():
     return render_template('index.html', turnstile_site_key=TURNSTILE_SITE_KEY)
 
 
 @app.route('/apply-admin/submit', methods=['POST'])
+@limiter.limit("10 per 5 minutes")
 def submit():
     # Turnstile 검증
     if TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY:
@@ -110,17 +135,35 @@ def submit():
         </script>
         """
 
-    # WebFinger를 이용한 존재 여부 검증
-    target_url = f"https://occm.cc/.well-known/webfinger?resource=acct:{user_id}@occm.cc"
+    # Mastodon API를 이용한 존재 여부 및 역할 검증
+    lookup_url = f"https://occm.cc/api/v1/accounts/lookup?acct={user_id}"
 
     try:
-        response = requests.get(target_url, timeout=5)
+        response = requests.get(lookup_url, timeout=5)
 
         # 404 Not Found인 경우 (존재하지 않는 아이디)
         if response.status_code == 404:
             return """
             <script>
                 alert('자커마스 서버에 존재하지 않는 아이디입니다.\\n아이디를 다시 확인해주세요.');
+                window.history.back();
+            </script>
+            """
+
+        if response.status_code == 200:
+            account_data = response.json()
+            roles = account_data.get('roles', [])
+            if any(role.get('name') == '커뮤니티 총괄' for role in roles):
+                return """
+                <script>
+                    alert('이미 커뮤니티 총괄 권한이 있습니다.');
+                    window.history.back();
+                </script>
+                """
+        elif response.status_code != 404:
+            return """
+            <script>
+                alert('아이디 조회 중 오류가 발생했습니다.\\n잠시 후 다시 시도해주세요.');
                 window.history.back();
             </script>
             """
