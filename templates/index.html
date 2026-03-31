@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ server_name }} 총괄계정 권한 신청 페이지</title>
+    <title>{{ server_name }} 계정 권한 신청 페이지</title>
     {% if turnstile_site_key %}
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     {% endif %}
@@ -63,9 +63,9 @@
 </head>
 <body>
     <div class="container">
-        <h1>{{ server_name }} 총괄계정 권한 신청</h1>
+        <h1>{{ server_name }} 계정 권한 신청</h1>
         <p class="description">
-            권한을 부여받을 {{ server_name }}({{ mastodon_domain }}) 계정 ID를<br>입력해주세요.
+            권한을 신청할 {{ server_name }}({{ mastodon_domain }}) 계정 ID를<br>입력해주세요.
         </p>
 
         <form id="applyForm" action="/apply-admin/submit" method="POST">
