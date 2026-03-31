@@ -58,6 +58,11 @@
         }
         .role-총괄 { background-color: #e8e8ff; color: #6364ff; }
         .role-스탭 { background-color: #e8f8e8; color: #2e7d32; }
+        .refresh-btn {
+            background: none; border: none; font-size: 0.9rem; color: #6364ff;
+            cursor: pointer; padding: 0; font-family: inherit;
+        }
+        .refresh-btn:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -65,6 +70,8 @@
         <h1>
             신청 목록
             <span>
+                <button type="button" class="refresh-btn" onclick="refreshList()">새로고침</button>
+                &nbsp;
                 <a href="/apply-admin/" class="home-link">← 신청 페이지로</a>
                 &nbsp;
                 <form action="/apply-admin/logout" method="POST" style="display:inline;">
@@ -93,6 +100,67 @@
         </ul>
     </div>
     <script>
+        function refreshList() {
+            fetch('/apply-admin/listman-data')
+            .then(function(response) {
+                return response.json().then(function(data) {
+                    return { ok: response.ok, data: data };
+                });
+            })
+            .then(function(result) {
+                if (!result.data.success) {
+                    alert(result.data.message);
+                    return;
+                }
+
+                var ul = document.querySelector('ul');
+                ul.innerHTML = '';
+
+                var items = result.data.items;
+                if (items.length === 0) {
+                    var emptyLi = document.createElement('li');
+                    emptyLi.className = 'empty-msg';
+                    emptyLi.textContent = '현재 대기 중인 신청 내역이 없습니다.';
+                    ul.appendChild(emptyLi);
+                    return;
+                }
+
+                items.forEach(function(item) {
+                    var li = document.createElement('li');
+
+                    var span = document.createElement('span');
+                    span.className = 'text-content';
+
+                    var a = document.createElement('a');
+                    a.href = 'https://occm.cc/admin/accounts?origin=local&username=' + encodeURIComponent(item.id);
+                    a.textContent = item.display_text;
+                    span.appendChild(a);
+
+                    if (item.role) {
+                        var badge = document.createElement('span');
+                        badge.className = 'role-badge ' + (item.role === '커뮤니티 총괄' ? 'role-총괄' : 'role-스탭');
+                        badge.textContent = item.role;
+                        span.appendChild(badge);
+                    }
+
+                    li.appendChild(span);
+
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'delete-btn';
+                    btn.setAttribute('data-id', item.id);
+                    btn.textContent = '삭제';
+                    btn.onclick = function() { deleteItem(btn); };
+                    li.appendChild(btn);
+
+                    ul.appendChild(li);
+                });
+            })
+            .catch(function() {
+                alert('목록을 불러오는 중 오류가 발생했습니다. 다시 시도해주세요.');
+            });
+        }
+
         function deleteItem(btn) {
             var targetId = btn.getAttribute('data-id');
             if (!confirm('ID [' + targetId + '] 항목을 정말 삭제하시겠습니까?')) {
@@ -111,18 +179,7 @@
             })
             .then(function(result) {
                 if (result.data.success) {
-                    var li = btn.closest('li');
-                    if (li) {
-                        li.remove();
-                    }
-                    // 목록이 비어있으면 빈 메시지 표시
-                    var ul = document.querySelector('ul');
-                    if (ul && ul.children.length === 0) {
-                        var emptyLi = document.createElement('li');
-                        emptyLi.className = 'empty-msg';
-                        emptyLi.textContent = '현재 대기 중인 신청 내역이 없습니다.';
-                        ul.appendChild(emptyLi);
-                    }
+                    refreshList();
                 } else {
                     alert(result.data.message);
                     btn.disabled = false;

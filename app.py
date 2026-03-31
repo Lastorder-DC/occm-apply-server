@@ -210,6 +210,36 @@ def listman():
     return render_template('admin.html', items=data_list)
 
 
+# 목록 데이터 JSON API
+@app.route('/apply-admin/listman-data', methods=['GET'])
+def listman_data():
+    if not is_admin_logged_in():
+        return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
+
+    data_list = []
+
+    with file_lock:
+        if os.path.exists(FILE_PATH):
+            with open(FILE_PATH, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line: continue
+
+                    parts = line.split('] ')
+                    if len(parts) > 1:
+                        timestamp_part = parts[0] + ']'
+                        rest = parts[1].strip()
+                        id_parts = rest.split('|', 1)
+                        extracted_id = id_parts[0].strip()
+                        extracted_role = id_parts[1].strip() if len(id_parts) > 1 else ''
+                        display_text = f"{timestamp_part} {extracted_id}"
+                        data_list.append({'display_text': display_text, 'id': extracted_id, 'role': extracted_role})
+                    else:
+                        data_list.append({'display_text': line, 'id': line, 'role': ''})
+
+    return jsonify({'success': True, 'items': data_list})
+
+
 # 삭제 시 줄 번호(index)가 아닌 ID 기준으로 삭제
 @app.route('/apply-admin/delete/<string:target_id>', methods=['POST'])
 def delete_item(target_id):
