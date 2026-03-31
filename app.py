@@ -168,10 +168,10 @@ def submit():
         if response.status_code == 200:
             account_data = response.json()
             roles = account_data.get('roles', [])
-            if any(role.get('name') == '커뮤니티 총괄' for role in roles):
-                return """
+            if any(role.get('name') == role_type for role in roles):
+                return f"""
                 <script>
-                    alert('이미 커뮤니티 총괄 권한이 있습니다.');
+                    alert('이미 {role_type} 권한이 있습니다.');
                     window.history.back();
                 </script>
                 """
