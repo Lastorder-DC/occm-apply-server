@@ -36,6 +36,19 @@
         }
         button:hover { background-color: #5051cc; }
         .footer { margin-top: 1.5rem; font-size: 0.8rem; color: #999; }
+        .page-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            padding: 0.6rem;
+            font-size: 0.75rem;
+            color: #aaa;
+            background-color: #f4f6f8;
+        }
+        .page-footer a { color: #aaa; text-decoration: none; }
+        .page-footer a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -54,5 +67,8 @@
             입력된 ID는 관리자 승인 대기 목록에 추가됩니다. 잘못 입력하였을 경우 다시 입력해주시면 됩니다.
         </div>
     </div>
+    <footer class="page-footer">
+        <a href="https://github.com/Lastorder-DC/occm-apply-server" target="_blank" rel="noopener noreferrer">소스코드 (GitHub)</a>
+    </footer>
 </body>
 </html>
