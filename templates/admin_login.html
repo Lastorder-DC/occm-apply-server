@@ -27,11 +27,11 @@
             text-align: center;
         }
         h1 { font-size: 1.5rem; color: #333; margin-bottom: 1.5rem; }
-        input[type="password"] {
+        input[type="email"], input[type="password"] {
             width: 100%; padding: 12px; margin-bottom: 1rem; border: 1px solid #ddd;
             border-radius: 6px; box-sizing: border-box; font-size: 1rem;
         }
-        input[type="password"]:focus { border-color: #6364ff; outline: none; }
+        input[type="email"]:focus, input[type="password"]:focus { border-color: #6364ff; outline: none; }
         button {
             width: 100%; padding: 12px; background-color: #6364ff; color: white;
             border: none; border-radius: 6px; font-size: 1rem; font-weight: bold; cursor: pointer;
@@ -50,6 +50,7 @@
         {% endif %}
 
         <form action="/apply-admin/admin-login" method="POST">
+            <input type="email" name="email" placeholder="이메일" required autofocus>
             <input type="password" name="password" placeholder="비밀번호" required autofocus>
             {% if turnstile_site_key %}
             <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
