@@ -1,4 +1,7 @@
 pending.txt
+*.db
+*.db-wal
+*.db-shm
 venv/
 .env
 __pycache__/
