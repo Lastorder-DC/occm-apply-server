@@ -1,13 +1,13 @@
-APP_VERSION = '1.1.1'
+APP_VERSION = '1.2.0'
 
 from flask import Flask, request, render_template, redirect, url_for, session, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash
-import threading
+import sqlite3
 import os
 import re
 import secrets
-from datetime import datetime, timedelta
+from datetime import timedelta
 import requests
 from dotenv import load_dotenv
 from flask_limiter import Limiter
@@ -20,11 +20,8 @@ app = Flask(__name__)
 # Get real ip from header
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
-# 파일 쓰기 충돌 방지를 위한 Lock 객체
-file_lock = threading.Lock()
-
 # .env 설정 로드
-FILE_PATH = os.environ.get('FILE_PATH', 'pending.txt')
+DB_PATH = os.environ.get('DB_PATH', 'pending.db')
 TURNSTILE_SITE_KEY = os.environ.get('TURNSTILE_SITE_KEY', '')
 TURNSTILE_SECRET_KEY = os.environ.get('TURNSTILE_SECRET_KEY', '')
 
@@ -65,6 +62,35 @@ limiter = Limiter(
     default_limits=[],
     headers_enabled=True,
 )
+
+
+def get_db():
+    """SQLite 연결을 반환한다."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA busy_timeout=5000")
+    return conn
+
+
+def init_db():
+    """데이터베이스 테이블을 초기화한다. WAL 모드를 설정한다."""
+    conn = get_db()
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS pending (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL UNIQUE,
+                role_type TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime'))
+            )
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+init_db()
 
 
 def verify_turnstile(token, remote_ip=None):
@@ -154,21 +180,18 @@ def submit():
         # 네트워크 오류 등 발생 시
         return jsonify({'success': False, 'message': '서버와 통신 중 오류가 발생했습니다.\n잠시 후 다시 시도해주세요.'}), 502
 
-    # 검증 통과 시 중복 확인 + 저장을 단일 Lock 내에서 수행 (레이스 컨디션 방지)
-    with file_lock:
-        if os.path.exists(FILE_PATH):
-            with open(FILE_PATH, 'r', encoding='utf-8') as f:
-                for line in f:
-                    parts = line.strip().split('] ')
-                    existing_rest = parts[1].strip() if len(parts) > 1 else line.strip()
-                    existing_id = existing_rest.split('|')[0].strip()
-                    if existing_id == user_id:
-                        return jsonify({'success': False, 'message': '이미 신청된 아이디입니다.'}), 409
-
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        log_entry = f"[{timestamp}] {user_id}|{role_type}\n"
-        with open(FILE_PATH, 'a', encoding='utf-8') as f:
-            f.write(log_entry)
+    # 검증 통과 시 중복 확인 + 저장 (SQLite UNIQUE 제약 조건으로 레이스 컨디션 방지)
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO pending (user_id, role_type) VALUES (?, ?)",
+            (user_id, role_type)
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        return jsonify({'success': False, 'message': '이미 신청된 아이디입니다.'}), 409
+    finally:
+        conn.close()
 
     return jsonify({'success': True, 'message': '신청이 완료되었습니다.'})
 
@@ -209,24 +232,21 @@ def listman():
 
     data_list = []
 
-    with file_lock:
-        if os.path.exists(FILE_PATH):
-            with open(FILE_PATH, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if not line: continue
-
-                    parts = line.split('] ')
-                    if len(parts) > 1:
-                        timestamp_part = parts[0] + ']'
-                        rest = parts[1].strip()
-                        id_parts = rest.split('|', 1)
-                        extracted_id = id_parts[0].strip()
-                        extracted_role = id_parts[1].strip() if len(id_parts) > 1 else ''
-                        display_text = f"{timestamp_part} {extracted_id}"
-                        data_list.append({'full_text': line, 'display_text': display_text, 'id': extracted_id, 'role': extracted_role})
-                    else:
-                        data_list.append({'full_text': line, 'display_text': line, 'id': line, 'role': ''})
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT user_id, role_type, created_at FROM pending ORDER BY id ASC"
+        ).fetchall()
+        for row in rows:
+            display_text = f"[{row['created_at']}] {row['user_id']}"
+            data_list.append({
+                'full_text': f"[{row['created_at']}] {row['user_id']}|{row['role_type']}",
+                'display_text': display_text,
+                'id': row['user_id'],
+                'role': row['role_type'],
+            })
+    finally:
+        conn.close()
 
     return render_template('admin.html', items=data_list, mastodon_domain=MASTODON_DOMAIN)
 
@@ -239,24 +259,20 @@ def listman_data():
 
     data_list = []
 
-    with file_lock:
-        if os.path.exists(FILE_PATH):
-            with open(FILE_PATH, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if not line: continue
-
-                    parts = line.split('] ')
-                    if len(parts) > 1:
-                        timestamp_part = parts[0] + ']'
-                        rest = parts[1].strip()
-                        id_parts = rest.split('|', 1)
-                        extracted_id = id_parts[0].strip()
-                        extracted_role = id_parts[1].strip() if len(id_parts) > 1 else ''
-                        display_text = f"{timestamp_part} {extracted_id}"
-                        data_list.append({'display_text': display_text, 'id': extracted_id, 'role': extracted_role})
-                    else:
-                        data_list.append({'display_text': line, 'id': line, 'role': ''})
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT user_id, role_type, created_at FROM pending ORDER BY id ASC"
+        ).fetchall()
+        for row in rows:
+            display_text = f"[{row['created_at']}] {row['user_id']}"
+            data_list.append({
+                'display_text': display_text,
+                'id': row['user_id'],
+                'role': row['role_type'],
+            })
+    finally:
+        conn.close()
 
     return jsonify({'success': True, 'items': data_list})
 
@@ -267,33 +283,18 @@ def delete_item(target_id):
     if not is_admin_logged_in():
         return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
 
-    with file_lock:
-        if os.path.exists(FILE_PATH):
-            with open(FILE_PATH, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-
-            new_lines = []
-            found = False
-            for line in lines:
-                parts = line.strip().split('] ')
-                if len(parts) > 1:
-                    rest = parts[1].strip()
-                    current_id = rest.split('|')[0].strip()
-                    if current_id == target_id:
-                        found = True
-                        continue
-
-                new_lines.append(line)
-
-            with open(FILE_PATH, 'w', encoding='utf-8') as f:
-                f.writelines(new_lines)
-
-            if found:
-                return jsonify({'success': True, 'message': f'{target_id} 항목이 삭제되었습니다.'})
-            else:
-                return jsonify({'success': False, 'message': '해당 항목을 찾을 수 없습니다.'}), 404
-
-    return jsonify({'success': False, 'message': '파일이 존재하지 않습니다.'}), 404
+    conn = get_db()
+    try:
+        cursor = conn.execute(
+            "DELETE FROM pending WHERE user_id = ?", (target_id,)
+        )
+        conn.commit()
+        if cursor.rowcount > 0:
+            return jsonify({'success': True, 'message': f'{target_id} 항목이 삭제되었습니다.'})
+        else:
+            return jsonify({'success': False, 'message': '해당 항목을 찾을 수 없습니다.'}), 404
+    finally:
+        conn.close()
 
 
 @app.route('/apply-admin/check-my-ip', methods=['GET'])
