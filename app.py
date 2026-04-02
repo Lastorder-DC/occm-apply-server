@@ -7,7 +7,7 @@ import sqlite3
 import os
 import re
 import secrets
-from datetime import datetime, timedelta
+from datetime import timedelta
 import requests
 from dotenv import load_dotenv
 from flask_limiter import Limiter
@@ -65,24 +65,24 @@ limiter = Limiter(
 
 
 def get_db():
-    """SQLite 연결을 반환한다. WAL 모드를 사용하여 읽기/쓰기 동시성을 높인다."""
+    """SQLite 연결을 반환한다."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=5000")
     return conn
 
 
 def init_db():
-    """데이터베이스 테이블을 초기화한다."""
+    """데이터베이스 테이블을 초기화한다. WAL 모드를 설정한다."""
     conn = get_db()
     try:
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS pending (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id TEXT NOT NULL UNIQUE,
                 role_type TEXT NOT NULL,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime'))
             )
         """)
         conn.commit()
@@ -181,12 +181,11 @@ def submit():
         return jsonify({'success': False, 'message': '서버와 통신 중 오류가 발생했습니다.\n잠시 후 다시 시도해주세요.'}), 502
 
     # 검증 통과 시 중복 확인 + 저장 (SQLite UNIQUE 제약 조건으로 레이스 컨디션 방지)
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     conn = get_db()
     try:
         conn.execute(
-            "INSERT INTO pending (user_id, role_type, created_at) VALUES (?, ?, ?)",
-            (user_id, role_type, timestamp)
+            "INSERT INTO pending (user_id, role_type) VALUES (?, ?)",
+            (user_id, role_type)
         )
         conn.commit()
     except sqlite3.IntegrityError:
