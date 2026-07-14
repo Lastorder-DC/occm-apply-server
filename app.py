@@ -1,4 +1,4 @@
-APP_VERSION = '1.2.0'
+APP_VERSION = '1.3.0'
 
 from flask import Flask, request, render_template, redirect, url_for, session, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix

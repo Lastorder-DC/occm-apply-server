@@ -38,6 +38,8 @@
         }
         button:hover { background-color: #5051cc; }
         .error { color: #ff4d4f; margin-bottom: 1rem; font-size: 0.9rem; }
+        .turnstile-area { display: none; }
+        .turnstile-area.is-visible { display: block; }
         .cf-turnstile { display: flex; justify-content: center; margin-bottom: 1rem; }
     </style>
 </head>
@@ -49,14 +51,35 @@
         <p class="error">{{ error }}</p>
         {% endif %}
 
-        <form action="/apply-admin/admin-login" method="POST">
+        <form id="loginForm" action="/apply-admin/admin-login" method="POST">
             <input type="email" name="email" placeholder="이메일" required autofocus>
             <input type="password" name="password" placeholder="비밀번호" required autofocus>
             {% if turnstile_site_key %}
-            <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
+            <div class="turnstile-area">
+                <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
+            </div>
             {% endif %}
             <button type="submit">로그인</button>
         </form>
     </div>
+    {% if turnstile_site_key %}
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            var turnstileArea = this.querySelector('.turnstile-area');
+            var submitBtn = this.querySelector('button[type="submit"]');
+            if (!turnstileArea.classList.contains('is-visible')) {
+                e.preventDefault();
+                turnstileArea.classList.add('is-visible');
+                submitBtn.textContent = '인증 후 로그인';
+                return;
+            }
+            var turnstileToken = this.querySelector('[name="cf-turnstile-response"]');
+            if (!turnstileToken || !turnstileToken.value) {
+                e.preventDefault();
+                alert('보안 인증을 완료해주세요.');
+            }
+        });
+    </script>
+    {% endif %}
 </body>
 </html>

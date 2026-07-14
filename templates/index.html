@@ -50,6 +50,8 @@
         }
         button:hover { background-color: #5051cc; }
         .footer { margin-top: 1.5rem; font-size: 0.8rem; color: #999; }
+        .turnstile-area { display: none; }
+        .turnstile-area.is-visible { display: block; }
         .cf-turnstile { display: flex; justify-content: center; margin-bottom: 1rem; }
         .page-footer {
             position: fixed;
@@ -87,7 +89,9 @@
                 <option value="커뮤니티 봇">커뮤니티 봇</option>
             </select>
             {% if turnstile_site_key %}
-            <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
+            <div class="turnstile-area">
+                <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
+            </div>
             {% endif %}
             <button type="submit">신청하기</button>
         </form>
@@ -104,6 +108,19 @@
             e.preventDefault();
             var form = this;
             var submitBtn = form.querySelector('button[type="submit"]');
+            {% if turnstile_site_key %}
+            var turnstileArea = form.querySelector('.turnstile-area');
+            if (!turnstileArea.classList.contains('is-visible')) {
+                turnstileArea.classList.add('is-visible');
+                submitBtn.textContent = '인증 후 신청하기';
+                return;
+            }
+            var turnstileToken = form.querySelector('[name="cf-turnstile-response"]');
+            if (!turnstileToken || !turnstileToken.value) {
+                alert('보안 인증을 완료해주세요.');
+                return;
+            }
+            {% endif %}
             submitBtn.disabled = true;
 
             fetch(form.action, {
