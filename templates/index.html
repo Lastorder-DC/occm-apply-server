@@ -28,6 +28,11 @@
         }
         h1 { font-size: 1.5rem; color: #333; margin-bottom: 1.5rem; }
         .description { color: #666; margin-bottom: 1.5rem; font-size: 0.95rem; line-height: 1.5; }
+        .status {
+            display: grid; gap: 0.4rem; margin-bottom: 1.5rem; padding: 0.85rem;
+            border-radius: 8px; background-color: #f4f4ff; color: #555; font-size: 0.9rem;
+        }
+        .status strong { color: #333; }
         input[type="text"] {
             width: 100%; padding: 12px; margin-bottom: 1rem; border: 1px solid #ddd;
             border-radius: 6px; box-sizing: border-box; font-size: 1rem;
@@ -68,12 +73,18 @@
             권한을 신청할 {{ server_name }}({{ mastodon_domain }}) 계정 ID를<br>입력해주세요.
         </p>
 
+        <div class="status" aria-label="신청 처리 현황">
+            <span>현재 대기 중인 신청 <strong>{{ pending_count }}건</strong></span>
+            <span>마지막 처리 시각 <strong>{{ last_processed_at or '처리 내역 없음' }}</strong></span>
+        </div>
+
         <form id="applyForm" action="/apply-admin/submit" method="POST">
             <input type="text" name="mastodon_id" placeholder="@userid 또는 userid" required autofocus maxlength="30">
             <select name="role_type" required>
                 <option value="" disabled selected>신청 유형 선택</option>
                 <option value="커뮤니티 총괄">커뮤니티 총괄</option>
                 <option value="커뮤니티 스탭">커뮤니티 스탭</option>
+                <option value="커뮤니티 봇">커뮤니티 봇</option>
             </select>
             {% if turnstile_site_key %}
             <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>

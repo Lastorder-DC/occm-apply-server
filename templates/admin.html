@@ -58,6 +58,7 @@
         }
         .role-총괄 { background-color: #e8e8ff; color: #6364ff; }
         .role-스탭 { background-color: #e8f8e8; color: #2e7d32; }
+        .role-봇 { background-color: #fff4df; color: #a15c00; }
         .refresh-btn {
             background: none; border: none; font-size: 0.9rem; color: #6364ff;
             cursor: pointer; padding: 0; font-family: inherit;
@@ -87,7 +88,7 @@
 			<span class="text-content">
                         <a href="https://{{ mastodon_domain }}/admin/accounts?origin=local&username={{ item.id|urlencode }}">{{ item.display_text }}</a>
                         {% if item.role %}
-                        <span class="role-badge {% if item.role == '커뮤니티 총괄' %}role-총괄{% else %}role-스탭{% endif %}">{{ item.role }}</span>
+                        <span class="role-badge {% if item.role == '커뮤니티 총괄' %}role-총괄{% elif item.role == '커뮤니티 스탭' %}role-스탭{% else %}role-봇{% endif %}">{{ item.role }}</span>
                         {% endif %}
                     </span>
                     
@@ -140,7 +141,10 @@
 
                     if (item.role) {
                         var badge = document.createElement('span');
-                        badge.className = 'role-badge ' + (item.role === '커뮤니티 총괄' ? 'role-총괄' : 'role-스탭');
+                        var roleClass = item.role === '커뮤니티 총괄'
+                            ? 'role-총괄'
+                            : (item.role === '커뮤니티 스탭' ? 'role-스탭' : 'role-봇');
+                        badge.className = 'role-badge ' + roleClass;
                         badge.textContent = item.role;
                         span.appendChild(badge);
                     }

@@ -85,6 +85,12 @@ def init_db():
                 created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime'))
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS app_metadata (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        """)
         conn.commit()
     finally:
         conn.close()
@@ -122,7 +128,25 @@ def ratelimit_handler(e):
 
 @app.route('/apply-admin/', methods=['GET'])
 def index():
-    return render_template('index.html', turnstile_site_key=TURNSTILE_SITE_KEY, mastodon_domain=MASTODON_DOMAIN, server_name=SERVER_NAME_KO, app_version=APP_VERSION)
+    conn = get_db()
+    try:
+        pending_count = conn.execute("SELECT COUNT(*) FROM pending").fetchone()[0]
+        row = conn.execute(
+            "SELECT value FROM app_metadata WHERE key = 'last_processed_at'"
+        ).fetchone()
+        last_processed_at = row['value'] if row else None
+    finally:
+        conn.close()
+
+    return render_template(
+        'index.html',
+        turnstile_site_key=TURNSTILE_SITE_KEY,
+        mastodon_domain=MASTODON_DOMAIN,
+        server_name=SERVER_NAME_KO,
+        app_version=APP_VERSION,
+        pending_count=pending_count,
+        last_processed_at=last_processed_at,
+    )
 
 
 @app.route('/apply-admin/submit', methods=['POST'])
@@ -137,7 +161,7 @@ def submit():
     raw_user_id = request.form.get('mastodon_id', '').strip()
     role_type = request.form.get('role_type', '').strip()
 
-    valid_roles = ['커뮤니티 총괄', '커뮤니티 스탭']
+    valid_roles = ['커뮤니티 총괄', '커뮤니티 스탭', '커뮤니티 봇']
     if role_type not in valid_roles:
         return jsonify({'success': False, 'message': '올바른 신청 유형을 선택해주세요.'}), 400
 
@@ -288,10 +312,16 @@ def delete_item(target_id):
         cursor = conn.execute(
             "DELETE FROM pending WHERE user_id = ?", (target_id,)
         )
-        conn.commit()
         if cursor.rowcount > 0:
+            conn.execute("""
+                INSERT INTO app_metadata (key, value)
+                VALUES ('last_processed_at', substr(strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime'), 3))
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """)
+            conn.commit()
             return jsonify({'success': True, 'message': f'{target_id} 항목이 삭제되었습니다.'})
         else:
+            conn.rollback()
             return jsonify({'success': False, 'message': '해당 항목을 찾을 수 없습니다.'}), 404
     finally:
         conn.close()
