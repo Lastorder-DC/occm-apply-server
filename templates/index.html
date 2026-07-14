@@ -112,7 +112,6 @@
             var turnstileArea = form.querySelector('.turnstile-area');
             if (!turnstileArea.classList.contains('is-visible')) {
                 turnstileArea.classList.add('is-visible');
-                submitBtn.textContent = '인증 후 신청하기';
                 return;
             }
             var turnstileToken = form.querySelector('[name="cf-turnstile-response"]');

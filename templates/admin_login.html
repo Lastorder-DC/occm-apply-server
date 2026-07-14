@@ -66,11 +66,9 @@
     <script>
         document.getElementById('loginForm').addEventListener('submit', function(e) {
             var turnstileArea = this.querySelector('.turnstile-area');
-            var submitBtn = this.querySelector('button[type="submit"]');
             if (!turnstileArea.classList.contains('is-visible')) {
                 e.preventDefault();
                 turnstileArea.classList.add('is-visible');
-                submitBtn.textContent = '인증 후 로그인';
                 return;
             }
             var turnstileToken = this.querySelector('[name="cf-turnstile-response"]');
